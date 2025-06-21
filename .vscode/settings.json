@@ -1,0 +1,20 @@
+{
+    "editor.rulers": [
+        100,
+    ],
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "charliermarsh.ruff",
+    },
+    "pylint.enabled": false,
+    "ruff.lint.enable": true,
+    "ruff.lint.select": ["E501"],
+    "python.testing.pytestArgs": [
+        "tests",
+    ],
+    "python.envFile": "${workspaceFolder}/.env",
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "editor.fontSize": 14,
+    "flake8.enabled": false,
+}
