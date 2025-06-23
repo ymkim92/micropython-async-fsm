@@ -2,14 +2,7 @@
 
 from async_fsm.fsm_async import AsyncState, AsyncFSM
 import pytest
-
-
-class NullLogger:
-    def info(self, msg):
-        pass
-
-    def error(self, msg):
-        pass
+from logger.null_logger import NullLogger
 
 
 # Event
@@ -81,15 +74,26 @@ async def test_fsm_basic_transitions():
     fsm.add_state(running)
     fsm.add_state(error)
 
+    # Define the action for Start event
+    async def on_start(ctx, message):
+        logger = ctx.get("logger", NullLogger())
+        logger.info("Executing Start action")
+        ctx["started_at"] = "10:00"
+
     # Define transitions
-    fsm.add_transition("Idle", "Start", "Running", guard=lambda ctx, msg: ctx.get("enabled"))
+    fsm.add_transition(
+        "Idle", "Start", "Running", guard=lambda ctx, msg: ctx.get("enabled"), action=on_start
+    )
     fsm.add_transition("Running", "Stop", "Idle")
     fsm.add_transition("Running", "Timeout", "Error")
 
     await fsm.start(ctx)
     assert fsm.current_state() == "Idle"
 
+    assert "started_at" not in ctx  # Ensure 'started_at' is set after Start action
     await fsm.dispatch(ctx, Start())
+    assert "started_at" in ctx  # Ensure 'started_at' is set after Start action
+    assert ctx["started_at"] == "10:00"
     assert fsm.current_state() == "Running"
 
     await fsm.dispatch(ctx, Stop())

@@ -30,8 +30,8 @@ class AsyncFSM:
     def add_state(self, state):
         self.states[state.name] = state
 
-    def add_transition(self, from_state, message_id, to_state_name, guard=None):
-        self.transition_table[(from_state, message_id)] = (to_state_name, guard)
+    def add_transition(self, from_state, message_id, to_state_name, guard=None, action=None):
+        self.transition_table[(from_state, message_id)] = (to_state_name, guard, action)
 
     async def start(self, ctx):
         await self.state.on_enter_state(ctx)
@@ -41,8 +41,10 @@ class AsyncFSM:
         transition = self.transition_table.get(key)
 
         if transition:
-            to_state_name, guard = transition
+            to_state_name, guard, action = transition
             if guard is None or guard(ctx, message):
+                if action:
+                    await action(ctx, message)
                 await self.state.on_exit_state(ctx)
                 self.state = self.states[to_state_name]
                 await self.state.on_enter_state(ctx)
