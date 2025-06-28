@@ -17,9 +17,6 @@ class AsyncState:
     async def on_exit_state(self, ctx):
         pass
 
-    async def on_event(self, ctx, message):
-        return self.name
-
 
 class AsyncFSM:
     def __init__(self, initial_state, states=None, transition_table=None):
