@@ -22,10 +22,10 @@ class AsyncState:
 
 
 class AsyncFSM:
-    def __init__(self, initial_state):
-        self.states = {}
+    def __init__(self, initial_state, states=None, transition_table=None):
         self.state = initial_state
-        self.transition_table = {}  # key: (state_name, message_id)
+        self.states = states or {}
+        self.transition_table = transition_table or {}  # key: (state_name, message_id)
 
     def add_state(self, state):
         self.states[state.name] = state
@@ -48,14 +48,6 @@ class AsyncFSM:
                 await self.state.on_exit_state(ctx)
                 self.state = self.states[to_state_name]
                 await self.state.on_enter_state(ctx)
-                return
-
-        # fallback handler
-        next_state_name = await self.state.on_event(ctx, message)
-        if next_state_name != self.state.name:
-            await self.state.on_exit_state(ctx)
-            self.state = self.states[next_state_name]
-            await self.state.on_enter_state(ctx)
 
     def current_state(self):
         return self.state.name

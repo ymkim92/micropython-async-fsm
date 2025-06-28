@@ -2,7 +2,9 @@
 
 from async_fsm.fsm_async import AsyncState, AsyncFSM
 import pytest
+import pytest_asyncio
 from logger.null_logger import NullLogger
+from unittest.mock import AsyncMock, Mock
 
 
 # Event
@@ -33,26 +35,16 @@ class Idle(AsyncState):
     async def on_enter_state(self, ctx):
         logger = ctx.get("logger", NullLogger())
         logger.info(">>> Entering Idle state")
-        ctx["timer"] = 0
-
-    async def on_event(self, ctx, message):
-        if isinstance(message, Timeout):
-            logger = ctx.get("logger", NullLogger())
-            logger.error(">>> Idle timeout, going to Error")
-            return "Error"
-        return self.name
 
 
 class Running(AsyncState):
     async def on_enter_state(self, ctx):
         logger = ctx.get("logger", NullLogger())
         logger.info(">>> Entered Running state")
-        ctx["task"] = "doing work"
 
     async def on_exit_state(self, ctx):
         logger = ctx.get("logger", NullLogger())
         logger.info("<<< Exiting Running state")
-        ctx["task"] = None
 
 
 class Error(AsyncState):
@@ -84,6 +76,7 @@ async def test_fsm_basic_transitions():
     fsm.add_transition(
         "Idle", "Start", "Running", guard=lambda ctx, msg: ctx.get("enabled"), action=on_start
     )
+    fsm.add_transition("Idle", "Timeout", "Error")
     fsm.add_transition("Running", "Stop", "Idle")
     fsm.add_transition("Running", "Timeout", "Error")
 
@@ -105,3 +98,69 @@ async def test_fsm_basic_transitions():
     # Dispatching Stop in Error should not change state
     await fsm.dispatch(ctx, Stop())
     assert fsm.current_state() == "Error"
+
+
+@pytest_asyncio.fixture
+async def test_fsm_idle_fixture():
+    mock_action = AsyncMock()
+    mock_guard = Mock(return_value=True)
+    mock_timeout_guard = Mock(return_value=False)
+
+    idle = Idle("Idle")
+    running = Running("Running")
+    error = Error("Error")
+
+    states = {"Idle": idle, "Running": running, "Error": error}
+    transition_table = {
+        ("Idle", "Start"): ("Running", mock_guard, mock_action),
+        ("Idle", "Timeout"): ("Error", mock_timeout_guard, None),
+    }
+    fsm = AsyncFSM(idle, states=states, transition_table=transition_table)
+    ctx = {}
+    await fsm.start(ctx)
+
+    return fsm, ctx, mock_action, mock_guard, mock_timeout_guard
+
+
+@pytest.mark.asyncio
+async def test_fsm_idle_to_running(test_fsm_idle_fixture):
+    fsm, ctx, mock_action, mock_guard, _ = test_fsm_idle_fixture
+
+    assert isinstance(fsm.state, Idle)
+    assert fsm.current_state() == "Idle"
+    start_message = Start()
+    await fsm.dispatch(ctx, start_message)
+
+    assert fsm.current_state() == "Running"
+    assert isinstance(fsm.state, Running)
+    mock_action.assert_awaited_once_with(ctx, start_message)
+    mock_guard.assert_called_once_with(ctx, start_message)
+
+
+@pytest.mark.asyncio
+async def test_fsm_idle_to_idle(test_fsm_idle_fixture):
+    fsm, ctx, _, _, mock_timeout_guard = test_fsm_idle_fixture
+
+    assert isinstance(fsm.state, Idle)
+    assert fsm.current_state() == "Idle"
+    timeout_message = Timeout()
+    await fsm.dispatch(ctx, timeout_message)
+
+    assert fsm.current_state() == "Idle"
+    assert isinstance(fsm.state, Idle)
+    mock_timeout_guard.assert_called_once_with(ctx, timeout_message)
+
+
+@pytest.mark.asyncio
+async def test_fsm_idle_to_error(test_fsm_idle_fixture):
+    fsm, ctx, _, _, mock_timeout_guard = test_fsm_idle_fixture
+    mock_timeout_guard.return_value = True
+
+    assert isinstance(fsm.state, Idle)
+    assert fsm.current_state() == "Idle"
+    timeout_message = Timeout()
+    await fsm.dispatch(ctx, timeout_message)
+
+    assert fsm.current_state() == "Error"
+    assert isinstance(fsm.state, Error)
+    mock_timeout_guard.assert_called_once_with(ctx, timeout_message)
