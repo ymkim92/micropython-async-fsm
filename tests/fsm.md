@@ -11,6 +11,7 @@ skinparam state {
 
 state Idle {
     Idle --> Running : Start [ctx.enabled == True]
+    Idle --> Idle : Start [ctx.enabled == False]
     Idle --> Error : Timeout
 }
 
