@@ -1,3 +1,5 @@
+"""fsm_async.py"""
+
 try:
     import uasyncio as asyncio
     from ucollections import defaultdict
@@ -28,7 +30,7 @@ class AsyncFSM:
             initial_state (AsyncState): The initial state of the FSM.
             states (dict, optional): A dictionary of states keyed by their names.
             transition_table (defaultdict, optional): A transition table mapping
-            (state_name, message_id) to a list of (to_state, guard, action).
+            (state_name, message) to a list of (to_state_name, guard, action).
         Note: when it moves to a new state by different guards,
               it will execute the first guard that matches.
         """
@@ -39,26 +41,26 @@ class AsyncFSM:
     def add_state(self, state):
         self.states[state.name] = state
 
-    def add_transition(self, from_state, message_id, to_state, guard=None, action=None):
-        self.transition_table[(from_state, message_id)].append((to_state, guard, action))
+    def add_transition(self, from_state_name, message, to_state_name, guard=None, action=None):
+        self.transition_table[(from_state_name, message)].append((to_state_name, guard, action))
 
     async def start(self, ctx):
         await self.state.on_enter_state(ctx)
 
     async def dispatch(self, ctx, message):
-        key = (self.state, type(message))
+        key = (self.state.name, type(message))
         transition = self.transition_table.get(key)
         if transition is None:
             return  # No transition defined
 
-        for to_state, guard, action in transition:
+        for to_state_name, guard, action in transition:
             if guard is None or guard(ctx, message):
                 if action:
                     await action(ctx, message)
                 await self.state.on_exit_state(ctx)
-                self.state = to_state
+                self.state = self.states[to_state_name]
                 await self.state.on_enter_state(ctx)
                 break
 
-    def current_state(self):
+    def current_state_name(self):
         return self.state.name

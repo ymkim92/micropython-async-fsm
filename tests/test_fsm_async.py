@@ -65,12 +65,12 @@ async def test_fsm_idle_fixture():
 
     states = {"Idle": idle, "Running": running, "Error": error}
     transition_table = {
-        ("Idle", "Start"): [
+        ("Idle", Start): [
             ("Running", mock_guard_enabled, on_start),
             # This transition is not necessary. Only for testing purposes of multiple guards
             ("Idle", mock_guard_disabled, mock_action),
         ],
-        ("Idle", "Timeout"): [("Error", mock_timeout_guard, None)],
+        ("Idle", Timeout): [("Error", mock_timeout_guard, None)],
     }
     fsm = AsyncFSM(idle, states=states, transition_table=transition_table)
     ctx = {}
@@ -84,7 +84,7 @@ async def test_fsm_idle_to_running(test_fsm_idle_fixture):
     fsm, ctx, _, mock_guard_enabled, _, _ = test_fsm_idle_fixture
 
     assert isinstance(fsm.state, Idle)
-    assert fsm.current_state() == "Idle"
+    assert fsm.current_state_name() == "Idle"
     start_message = Start()
     assert "started_at" not in ctx  # Ensure 'started_at' is set after Start action
     await fsm.dispatch(ctx, start_message)
@@ -93,7 +93,7 @@ async def test_fsm_idle_to_running(test_fsm_idle_fixture):
     mock_guard_enabled.assert_called_once_with(ctx, start_message)
     assert "started_at" in ctx  # Ensure 'started_at' is set after Start action
     assert ctx["started_at"] == "10:00"
-    assert fsm.current_state() == "Running"
+    assert fsm.current_state_name() == "Running"
 
 
 @pytest.mark.asyncio
@@ -104,11 +104,11 @@ async def test_fsm_idle_to_idle_when_disabled(test_fsm_idle_fixture):
     mock_guard_disabled.return_value = True
 
     assert isinstance(fsm.state, Idle)
-    assert fsm.current_state() == "Idle"
+    assert fsm.current_state_name() == "Idle"
     start_message = Start()
     await fsm.dispatch(ctx, start_message)
 
-    assert fsm.current_state() == "Idle"
+    assert fsm.current_state_name() == "Idle"
     assert isinstance(fsm.state, Idle)
     mock_action.assert_awaited_once_with(ctx, start_message)
     mock_guard_disabled.assert_called_once_with(ctx, start_message)
@@ -119,11 +119,11 @@ async def test_fsm_idle_to_idle_no_timeout(test_fsm_idle_fixture):
     fsm, ctx, _, _, _, mock_timeout_guard = test_fsm_idle_fixture
 
     assert isinstance(fsm.state, Idle)
-    assert fsm.current_state() == "Idle"
+    assert fsm.current_state_name() == "Idle"
     timeout_message = Timeout()
     await fsm.dispatch(ctx, timeout_message)
 
-    assert fsm.current_state() == "Idle"
+    assert fsm.current_state_name() == "Idle"
     assert isinstance(fsm.state, Idle)
     mock_timeout_guard.assert_called_once_with(ctx, timeout_message)
 
@@ -134,10 +134,10 @@ async def test_fsm_idle_to_error(test_fsm_idle_fixture):
     mock_timeout_guard.return_value = True
 
     assert isinstance(fsm.state, Idle)
-    assert fsm.current_state() == "Idle"
+    assert fsm.current_state_name() == "Idle"
     timeout_message = Timeout()
     await fsm.dispatch(ctx, timeout_message)
 
-    assert fsm.current_state() == "Error"
+    assert fsm.current_state_name() == "Error"
     assert isinstance(fsm.state, Error)
     mock_timeout_guard.assert_called_once_with(ctx, timeout_message)
