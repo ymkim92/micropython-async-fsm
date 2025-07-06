@@ -1,0 +1,7 @@
+{
+    "urls": [
+      ["async_fsm/__init__.py", "https://raw.githubusercontent.com/ymkim92/micropython-async-fsm/main/src/async_fsm/__init__.py"],
+      ["async_fsm/fsm_async.py", "https://raw.githubusercontent.com/ymkim92/micropython-async-fsm/main/src/async_fsm/fsm_async.py"],
+    ],
+    "version": "0.1"
+}
